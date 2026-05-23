@@ -5,10 +5,7 @@ WORKDIR /app
 # 1. تحميل نواة السيرفر (Paper 1.21.x)
 RUN wget -O paper.jar https://fill-data.papermc.io/v1/objects/cfb9281c2657e21ecc8acdaa9efbd6b5b3e873fb5bac4c3b8ba4bba67aa13ee2/paper-26.1.2-65.jar
 
-# إنشاء مجلد الإضافات
-RUN mkdir -p plugins
-
-# 2. تحميل جميع الإضافات (Plugins) المطلوبة للمشروع بالإصدارات المتوافقة
+# 2. تحميل الإضافات الـ 13 مباشرة إلى مجلد plugins
 RUN wget -O plugins/playit.jar https://github.com/playit-cloud/playit-minecraft-plugin/releases/latest/download/playit-minecraft-plugin.jar && \
     wget -O plugins/LuckPerms.jar https://download.luckperms.net/1563/bukkit/loader/LuckPerms-Bukkit-5.4.151.jar && \
     wget -O plugins/EssentialsX.jar https://github.com/EssentialsX/Essentials/releases/download/2.21.0/EssentialsX-2.21.0.jar && \
@@ -23,12 +20,9 @@ RUN wget -O plugins/playit.jar https://github.com/playit-cloud/playit-minecraft-
     wget -O plugins/Vault.jar https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar && \
     wget -O plugins/ScreamingBedWars.jar https://github.com/ScreamingSandals/ScreamingBedWars/releases/latest/download/ScreamingBedWars.jar
 
-# ملاحظة: تم تحميل Spark مسبقاً لأنه يأتي مدمجاً تلقائياً (Bundled) داخل نواة Paper الحديثة
-# ملاحظة: نظام الاقتصاد (Economy) مدمج تلقائياً داخل ملف EssentialsX المحمل أعلاه
-
-# 3. إعداد الموافقة على الشروط وجعل السيرفر مكركاً (Offline Mode)
+# 3. إعدادات السيرفر المكرك (Offline Mode)
 RUN echo "eula=true" > eula.txt
 RUN echo "online-mode=false" > server.properties
 
-# 4. تشغيل السيرفر مع كود ربط Playit والمحافظة على الرام
-CMD ["java", "-Xmx512M", "-Xms512M", "-Dplayit.secret=908accd472cf9d785a5f5d182bb60f2b", "-jar", "paper.jar", "nogui"]
+# 4. تشغيل السيرفر مع كود ربط Playit الجديد الخاص بك
+CMD ["java", "-Xmx512M", "-Xms512M", "-Dplayit.secret=16eb6c5ef7db7fd6", "-jar", "paper.jar", "nogui"]
