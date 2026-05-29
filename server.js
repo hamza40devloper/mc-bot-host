@@ -41,81 +41,36 @@ async function initDatabase() {
     }
 }
 
-function launchBotProcess(botId, fullIp, username, userWhoSent) {
+// 1. تحديث دالة التشغيل لتستقبل الإصدار
+function launchBotProcess(botId, fullIp, username, userWhoSent, version) {
     let host = fullIp;
     let port = '25565';
     if (fullIp.includes(':')) {
         [host, port] = fullIp.split(':');
     }
 
-    const botProcess = fork('./bot.js', [host, port, username]);
+    // تمرير الإصدار كمتغير رابع (بعد الـ host والـ port والـ username)
+    const botProcess = fork('./bot.js', [host, port, username, version]);
 
-    botProcess.botData = { botId, serverIp: fullIp, username, userWhoSent, isSaved247: false };
+    botProcess.botData = { botId, serverIp: fullIp, username, userWhoSent, version, isSaved247: false };
     activeBots.set(botId, botProcess);
     
-    console.log(`[LAUNCH] ${username} on ${fullIp}`);
+    console.log(`[LAUNCH] ${username} on ${fullIp} (Version: ${version})`);
     botProcess.on('exit', () => activeBots.delete(botId));
 }
 
-async function restoreBotsFromDatabase() {
-    try {
-        const res = await pool.query('SELECT * FROM saved_bots WHERE is_saved_247 = TRUE');
-        res.rows.forEach(bot => {
-            launchBotProcess(bot.bot_id, bot.server_ip, bot.username, bot.user_who_sent);
-            const proc = activeBots.get(bot.bot_id);
-            if (proc) proc.botData.isSaved247 = true;
-        });
-    } catch (err) {
-        console.error('[RESTORE ERROR]', err.message);
-    }
-}
-
-// ================= BOTS API =================
-// حماية المسارات (Routes) بمفتاح API لمنع الاستخدام الخارجي
-const authMiddleware = (req, res, next) => {
+// 2. تحديث نقطة النهاية (Endpoint) لاستقبال الإصدار من الواجهة
+app.post('/api/start-bot', (req, res) => {
     if (req.headers['x-api-key'] !== API_KEY) return res.status(403).json({ error: 'Access Denied' });
-    next();
-};
 
-app.post('/api/start-bot', authMiddleware, (req, res) => {
-    const { serverIp, username, userWhoSent } = req.body;
+    // استخراج الإصدار من الطلب
+    const { serverIp, username, userWhoSent, version } = req.body;
     if (!serverIp || !username) return res.status(400).json({ error: 'Missing data' });
 
     const botId = `${username}_${Date.now()}`;
-    launchBotProcess(botId, serverIp, username, userWhoSent || "زائر");
+    
+    // تمرير الإصدار، وإذا لم يكن موجوداً نعتبره "false" (تلقائي)
+    launchBotProcess(botId, serverIp, username, userWhoSent || "زائر", version || "false");
+    
     res.json({ success: true, botId });
-});
-
-app.post('/api/bot/chat', authMiddleware, (req, res) => {
-    const { botId, message } = req.body;
-    const bot = activeBots.get(botId);
-    if (!bot) return res.status(404).json({ error: 'Bot offline' });
-
-    bot.send({ type: 'send_chat', text: message });
-    res.json({ success: true });
-});
-
-app.post('/api/save-bot', authMiddleware, async (req, res) => {
-    const { botId, username, userId } = req.body;
-    const bot = activeBots.get(botId);
-    if (!bot) return res.status(404).json({ error: 'Bot not found' });
-
-    try {
-        bot.botData.isSaved247 = true;
-        const b = bot.botData;
-
-        await pool.query(`
-            INSERT INTO saved_bots (bot_id, server_ip, username, user_who_sent, saved_by_username, saved_by_user_id, is_saved_247)
-            VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (bot_id) DO UPDATE SET is_saved_247 = TRUE
-        `, [b.botId, b.serverIp, b.username, b.userWhoSent, username, userId, true]);
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: 'DB error' });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`[BOT SERVER] Running on port ${PORT}`);
-    initDatabase();
 });
