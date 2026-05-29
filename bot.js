@@ -1,27 +1,34 @@
 const mineflayer = require('mineflayer');
 
+// استقبال المتغيرات من server.js
 const serverIp = process.argv[2];
 const port = parseInt(process.argv[3]) || 25565;
 const username = process.argv[4];
+const versionArg = process.argv[5]; // المتغير الرابع هو الإصدار
 
 let bot;
 
 function createBot() {
-    // تنظيف الأحداث القديمة لتجنب تسرب الذاكرة (Memory Leak) عند إعادة الاتصال
     if (bot) {
         bot.removeAllListeners();
+    }
+
+    // معالجة الإصدار: إذا كان "false" نجعله قيمة بوليانية (Boolean) ليعمل الاكتشاف التلقائي
+    let botVersion = false;
+    if (versionArg && versionArg !== "false") {
+        botVersion = versionArg;
     }
 
     bot = mineflayer.createBot({
         host: serverIp,
         port: port,
         username: username,
-        version: false,
+        version: botVersion, // استخدام الإصدار المحدد أو التلقائي
         viewDistance: "tiny"
     });
 
     bot.on('spawn', () => {
-        console.log(`[BOT] ${username} joined ${serverIp}:${port}`);
+        console.log(`[BOT] ${username} joined ${serverIp}:${port} on version ${botVersion || 'Auto'}`);
     });
 
     bot.on('end', () => {
@@ -33,6 +40,8 @@ function createBot() {
         console.error(`[BOT ERROR - ${username}]`, err.message);
     });
 }
+
+// ... (باقي الكود الخاص بـ process.on يبقى كما هو)
 
 // استقبال الأوامر من السيرفر الأساسي (تبقى خارج الدالة)
 process.on('message', (packet) => {
